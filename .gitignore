@@ -1,0 +1,29 @@
+# ── 使用者設定（每個人不同，不要進版控）──
+config.json
+
+# ── 產出與中間檔（含真實業務資料，不要進版控）──
+raw/
+data/
+report/
+downloads/
+
+# ── 開發過程的探索腳本與舊產出 ──
+_archive/
+
+# ── Node ──
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── 編輯器 / 作業系統 ──
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ── 暫存 / 記錄 ──
+*.log
+*.tmp

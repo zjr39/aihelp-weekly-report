@@ -1,0 +1,34 @@
+{
+  "name": "aihelp-weekly-report",
+  "version": "1.0.0",
+  "private": false,
+  "description": "从 AIHelp 客服系统自动采集客诉数据，区分有效/无效客诉，一键产出周报 Excel（零依赖，Windows）",
+  "keywords": [
+    "aihelp",
+    "customer-support",
+    "weekly-report",
+    "excel",
+    "automation",
+    "chrome-devtools-protocol"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "win32"
+  ],
+  "type": "module",
+  "scripts": {
+    "start": "node bin/gui.mjs",
+    "setup": "node bin/setup.mjs",
+    "weekly": "node bin/run-weekly.mjs",
+    "collect": "node bin/collect-v3.mjs",
+    "chrome": "node bin/chrome-up.mjs",
+    "icon": "node tools/make-icon.mjs",
+    "install-shortcut": "powershell -ExecutionPolicy Bypass -File bin/install-launcher.ps1",
+    "uninstall-shortcut": "powershell -ExecutionPolicy Bypass -File bin/install-launcher.ps1 -Remove"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>客诉周报采集工具</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header>
+  <h1>客诉周报采集工具</h1>
+  <div class="headRight">
+    <button id="btnChrome" class="headBtn">启动 Chrome</button>
+    <button id="btnQuit" class="headBtn">关闭工具</button>
+    <div id="chromeStatus" class="chip chip-idle">检查环境中…</div>
+  </div>
+</header>
+
+<main>
+  <div id="offline" class="offline" hidden>
+    ⚠️ 与后台服务的连接已断开（服务可能已停止）。请双击桌面的「客诉周报工具」图示重新启动。
+  </div>
+
+  <!-- 控制面板 -->
+  <section class="card">
+    <div class="row">
+      <label>起始日
+        <input type="date" id="startDate" />
+      </label>
+      <label>结束日
+        <input type="date" id="endDate" />
+      </label>
+      <div class="quick">
+        <button class="ghost" data-quick="last">上一周</button>
+        <button class="ghost" data-quick="this">本周</button>
+      </div>
+      <div class="spacer"></div>
+      <button id="btnStart" class="primary">▶ 开始采集</button>
+      <button id="btnPause" disabled>⏸ 暂停</button>
+      <button id="btnStop" class="danger" disabled>⏹ 终止</button>
+    </div>
+    <div id="statusLine" class="status">待机中</div>
+    <div class="hint">统计周期为一周：<b>上周五 ~ 本周四</b></div>
+  </section>
+
+  <!-- 进度 -->
+  <section class="card">
+    <div class="progressHead">
+      <span id="stepLabel">尚未开始</span>
+      <span id="progressText" class="muted">0 / 0</span>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+  </section>
+
+  <!-- 游戏状态 -->
+  <section class="card">
+    <h2>各游戏采集状态</h2>
+    <table id="gameTable">
+      <thead>
+        <tr>
+          <th>游戏</th>
+          <th>客诉明细</th>
+          <th>一级标签</th>
+          <th>二级标签</th>
+          <th>总客诉</th>
+          <th>有效</th>
+          <th>无效</th>
+        </tr>
+      </thead>
+      <tbody id="gameBody">
+        <tr><td colspan="7" class="empty">尚未开始</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 结果 -->
+  <section class="card" id="resultCard" hidden>
+    <h2>采集结果</h2>
+    <div id="resultBody"></div>
+    <div class="row" id="downloadRow">
+      <button id="btnXlsx" class="primary">⬇ 下载 Excel 表格</button>
+      <button id="btnTsv" class="ghost">⬇ 下载文字档</button>
+      <button id="btnRaw" class="ghost">⬇ 下载原始数据 JSON</button>
+    </div>
+  </section>
+
+  <!-- 日志 -->
+  <section class="card">
+    <div class="logHead">
+      <h2>执行日志</h2>
+      <label class="muted small inline"><input type="checkbox" id="autoScroll" checked /> 自动滚动</label>
+    </div>
+    <pre id="log"></pre>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
