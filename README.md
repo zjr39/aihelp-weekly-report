@@ -91,6 +91,9 @@ npm start
 npm run install-shortcut
 ```
 
+> 请先完成上面的「设定精灵」，桌面图示才能正常运作。
+> 专案搬家后重跑一次这个指令即可修复。
+
 会建立两个桌面图示：
 
 | 图示 | 作用 |
@@ -109,6 +112,8 @@ npm run uninstall-shortcut
 ```bash
 npm run install-shortcut -- -ShowWindow
 ```
+
+如果不想装图示，也可以直接双击专案根目录的 `start.cmd`（会显示黑色视窗）。
 
 ---
 
