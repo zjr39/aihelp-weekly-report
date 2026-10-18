@@ -40,7 +40,11 @@
       <button id="btnStop" class="danger" disabled>⏹ 终止</button>
     </div>
     <div id="statusLine" class="status">待机中</div>
-    <div class="hint">统计周期为一周：<b>上周五 ~ 本周四</b></div>
+    <div class="hint">
+      <span>统计周期为一周：<b>上周五 ~ 本周四</b></span>
+      <span class="hintSep">·</span>
+      <span>时间依据：<b id="timeFilterLabel">客诉创建时间</b></span>
+    </div>
   </section>
 
   <!-- 进度 -->

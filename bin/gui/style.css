@@ -37,6 +37,7 @@ header h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: .5px; 
 }
 .hint { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
 .hint b { color: #39527d; }
+.hintSep { display: inline-block; margin: 0 10px; color: #c3ccdb; }
 .chip {
   padding: 5px 12px; border-radius: 999px;
   font-size: 12.5px; background: rgba(255,255,255,.18); color: #fff;

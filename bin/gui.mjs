@@ -169,6 +169,7 @@ const state = {
   startedAt: null,
   finishedAt: null,
   progress: { finished: 0, total: 0 },
+  timeFilter: 'create', // create = 客訴創建時間、metric = 指標發生時間
 };
 const clients = new Set();
 
@@ -206,8 +207,17 @@ function publicState() {
     startedAt: state.startedAt,
     finishedAt: state.finishedAt,
     log: state.log.slice(-300),
+    // 統計頁的「時間依據」：客訴創建時間（create）/ 指標發生時間（metric）
+    timeFilter: state.timeFilter || 'create',
   };
 }
+
+// 啟動時先把設定讀進來（給介面顯示時間依據用）
+try {
+  const { loadConfig } = await import('../lib/config.mjs');
+  const c = await loadConfig({ autoCreate: false });
+  state.timeFilter = c.timeFilter || 'create';
+} catch {}
 
 // 这个服务器必须「打不死」：蒐集流程与 HTTP 服务在同一个程序内，
 // 任何未捕捉的例外或未处理的 rejection 都会让整个界面死掉（使用者看到的症狀就是「按了没反应」）。

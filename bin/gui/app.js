@@ -103,6 +103,8 @@ function render(s) {
   statusEl.className = 'status ' + cls;
 
   $('stepLabel').textContent = s.step ? '当前步骤：' + s.step : '尚未开始';
+  const tf = $('timeFilterLabel');
+  if (tf) tf.textContent = s.timeFilter === 'metric' ? '指标发生时间' : '客诉创建时间';
   const totalGames = s.games ? s.games.length : 0;
   const finished = s.games ? s.games.filter((g) => g.tickets && g.tickets.status === 'done').length : 0;
   $('progressText').textContent = totalGames ? `${finished} / ${totalGames} 个游戏` : '0 / 0';

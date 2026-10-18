@@ -170,6 +170,37 @@ npm run weekly -- --skip-collect
 | 专用 profile | `%LOCALAPPDATA%\aihelp-weekly\chrome-profile` |
 | 输出目录 | 专案内的 `raw/` `data/` `report/` `downloads/` |
 | 週期起始 | 周五（即周五 ~ 周四） |
+| 统计页时间依据 | **客诉创建时间**（`timeFilter: "create"`） |
+
+### 关于「时间依据」
+
+AIHelp 客诉统计页有个下拉选单决定「时间怎么归到週期」：
+
+| 选项 | `timeFilter` | 含义 |
+|---|---|---|
+| **客诉创建时间** | `"create"`（预设） | 按「客诉建立的那一刻」归属。所有数字描述**同一批客诉**（本週建立的） |
+| 指标发生时间 | `"metric"` | AIHelp 的原始预设。按「指标发生的那一刻」归属 |
+
+本工具预设用**客诉创建时间**，因为客诉明细页（算有效／无效的依据）本来就是按创建时间抓的，
+两边的基础一致才对得上帐。
+
+实测两者差异（某个 7 天区间）：
+
+| 指标 | 指标发生时间 | 客诉创建时间 |
+|---|---|---|
+| 客诉生成量 | 95 | 95（不变） |
+| 客诉解决量 | 71 | 32 |
+| 评价率 | 46.5% | 78.1% |
+| 一／二级标签明细 | — | **完全相同** |
+
+> 差异来源：`客诉解决量` 在指标模式下是「这週被解决的」（含上週建立的客诉），
+> 在创建模式下是「这週建立且已解决的」。前者会跨週期重复计算同一批客诉。
+
+要切回 AIHelp 的原始行为，在 `config.json` 加一行：
+
+```json
+{ "timeFilter": "metric" }
+```
 
 ### 进阶选项
 
@@ -179,7 +210,8 @@ npm run weekly -- --skip-collect
   "port": 9222,
   "chrome": "D:\\Chrome\\chrome.exe",
   "profileDir": "D:\\aihelp-profile",
-  "weekAnchor": "fri"
+  "weekAnchor": "fri",
+  "timeFilter": "create"
 }
 ```
 
