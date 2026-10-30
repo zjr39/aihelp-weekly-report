@@ -62,9 +62,19 @@ check('未執行時暫停被拒', p1.status === 409, p1.json && p1.json.error);
 const s1 = await post('/api/stop');
 check('未執行時終止被拒', s1.status === 409, s1.json && s1.json.error);
 
-// 7) 下載（尚未產出時應 404）
+// 7) 下載端點：有檔案回 200（xlsx 型別）、沒檔案回 404，兩者都算正常
+//    （不能假設「一定還沒產出檔案」—— 跑過一次就會有）
 const d1 = await get('/api/download/xlsx');
-check('無檔案時下載回 404', d1.status === 404, `HTTP ${d1.status}`);
+const okKind = d1.status === 200 || d1.status === 404;
+check(
+  '下載端點回應正常',
+  okKind,
+  `HTTP ${d1.status}${d1.status === 200 ? '（已有檔案）' : '（尚無檔案）'}`,
+);
+
+// 不存在的下載類型一定要 404
+const d2 = await get('/api/download/not-a-real-kind');
+check('不存在的下載類型回 404', d2.status === 404, `HTTP ${d2.status}`);
 
 // 8) SSE 可連線並收到初始 state
 const sse = await new Promise((resolve) => {
