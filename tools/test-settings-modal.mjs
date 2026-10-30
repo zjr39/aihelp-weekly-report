@@ -1,14 +1,31 @@
 // 完整驗證 AI 設定對話窗的各種開關方式
 import { loadConfig, listTargets, connect, sleep } from '../lib/cdp.mjs';
 
+const GUI = 'http://127.0.0.1:8791';
 const cfg = await loadConfig();
-const targets = await listTargets(cfg.port);
-const page = targets.find((t) => t.type === 'page' && t.url.includes('8791'));
 const conn = await connect(cfg.port);
+
+// 找 GUI 分頁；沒有就自己開一個（分頁可能被關掉，不該讓測試直接崩）
+let targets = await listTargets(cfg.port);
+let page = targets.find((t) => t.type === 'page' && t.url.includes('8791'));
+if (!page) {
+  const { targetId } = await conn.send('Target.createTarget', { url: GUI });
+  for (let i = 0; i < 30; i++) {
+    await sleep(500);
+    targets = await listTargets(cfg.port);
+    page = targets.find((t) => t.id === targetId);
+    if (page) break;
+  }
+}
+if (!page) {
+  console.log('❌ 找不到也開不出 GUI 分頁（請先確認 http://127.0.0.1:8791 有在跑）');
+  process.exit(1);
+}
+
 const sid = await conn.attach(page.id);
 const ev = conn.makeEval(sid, { timeout: 60000 });
 await conn.send('Page.enable', {}, sid);
-await conn.send('Page.reload', { ignoreCache: true }, sid);
+await conn.send('Page.navigate', { url: GUI }, sid);
 await sleep(2500);
 
 const state = () =>
