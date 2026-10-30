@@ -10,11 +10,52 @@
 <header>
   <h1>客诉周报采集工具</h1>
   <div class="headRight">
+    <button id="btnSettings" class="headBtn">AI 设定</button>
     <button id="btnChrome" class="headBtn">启动 Chrome</button>
     <button id="btnQuit" class="headBtn">关闭工具</button>
     <div id="chromeStatus" class="chip chip-idle">检查环境中…</div>
   </div>
 </header>
+
+<!-- AI 设定对话窗 -->
+<div id="settingsModal" class="modal" hidden>
+  <div class="modalBox">
+    <div class="modalHead">
+      <h2>AI 摘要设定</h2>
+      <button id="btnCloseSettings" class="iconBtn" title="关闭">✕</button>
+    </div>
+    <p class="modalHint">
+      客诉的「具体内容」会用 AI 把玩家对话浓缩成一句中文摘要。<br>
+      支援任何 OpenAI 相容服务（DeepSeek、OpenAI、Ollama、One-API…）。
+    </p>
+    <label class="field">
+      <span>API 位址</span>
+      <input type="text" id="llmBaseUrl" placeholder="https://api.deepseek.com" autocomplete="off" spellcheck="false" />
+      <small>例：https://api.deepseek.com 或 https://api.openai.com/v1（会自动补 /chat/completions）</small>
+    </label>
+    <label class="field">
+      <span>API Key</span>
+      <input type="password" id="llmApiKey" placeholder="留空表示不修改" autocomplete="off" spellcheck="false" />
+      <small id="keyHint">尚未设定</small>
+    </label>
+    <label class="field">
+      <span>模型名称</span>
+      <input type="text" id="llmModel" placeholder="deepseek-chat" autocomplete="off" spellcheck="false" />
+      <small>例：deepseek-chat、gpt-4o-mini、qwen2.5:7b</small>
+    </label>
+    <label class="checkLine">
+      <input type="checkbox" id="summarizeEnabled" checked />
+      <span>采集后产生「具体内容」摘要</span>
+    </label>
+    <div id="settingsMsg" class="settingsMsg" hidden></div>
+    <div class="modalFoot">
+      <button id="btnTestLlm" class="ghost">测试连线</button>
+      <div class="spacer"></div>
+      <button id="btnCancelSettings" class="ghost">取消</button>
+      <button id="btnSaveSettings" class="primary">储存</button>
+    </div>
+  </div>
+</div>
 
 <main>
   <div id="offline" class="offline" hidden>

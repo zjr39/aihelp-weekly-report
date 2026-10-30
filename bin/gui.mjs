@@ -15,7 +15,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collect, StopRequested } from '../lib/collectCore.mjs';
-import { transform, buildSheet, buildXlsxReport } from '../lib/pipeline.mjs';
+import { transform, buildSheet, buildXlsxReport, prepareSummaryGroups } from '../lib/pipeline.mjs';
+import { summarizeGroups, fallbackSummary } from '../lib/summarize.mjs';
+import { testConnection as testLlm } from '../lib/llm.mjs';
+import { loadConfig, saveConfig } from '../lib/config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -338,9 +341,10 @@ async function runJob(start, end) {
 
     pushLog(`=== 开始采集：${start} ~ ${end} ===`);
     // 先确认环境，避免一开始就卡在连线
+    let cfg = null;
     try {
       const { listTargets, findPage, connect, loadConfig } = await import('../lib/cdp.mjs');
-      const cfg = await loadConfig();
+      cfg = await loadConfig();
       const targets = await listTargets(cfg.port);
       const pg = findPage(targets, cfg.host);
       if (!pg) throw new Error('专用 Chrome 未启动或找不到 AIHelp 分页 → 请按「启动 Chrome」');
@@ -388,6 +392,34 @@ async function runJob(start, end) {
       },
     });
 
+    // ───────── 用 LLM 产生「具体内容」摘要 ─────────
+    let summaries = null;
+    if (cfg && cfg.summarize !== false) {
+      pushLog('\n=== 产生具体内容摘要 ===');
+      state.step = '产生具体内容摘要';
+      broadcast('state', publicState());
+      try {
+        const rawJson = JSON.parse(await fs.readFile(job.outFile, 'utf8'));
+        const groups = prepareSummaryGroups(rawJson);
+        if (!groups.length) {
+          pushLog('  （没有可用于摘要的对话资料）');
+        } else if (!cfg.llm.enabled) {
+          pushLog('  ⚠️ 尚未设定 API 位址／模型 → 改用代表性原话作为摘要');
+          pushLog('     请点右上角「设定」填入 AI 服务资讯');
+          summaries = {};
+          for (const g of groups) {
+            summaries[g.gameName] = {};
+            for (const it of g.items) summaries[g.gameName][it.tag] = fallbackSummary(it.messages, it.count);
+          }
+        } else {
+          pushLog(`  使用模型：${cfg.llm.model}（${new URL(cfg.llm.baseUrl).host}）`);
+          summaries = await summarizeGroups({ groups, llm: cfg.llm, log: (m) => pushLog(m) });
+        }
+      } catch (e) {
+        pushLog(`  [!] 摘要产生失败：${e.message}`);
+      }
+    }
+
     pushLog('\n=== 转换数据 ===');
     state.step = '转换数据格式';
     broadcast('state', publicState());
@@ -395,6 +427,7 @@ async function runJob(start, end) {
       inFile: job.outFile,
       outBase: path.join(ROOT, 'data', outName),
       onLog: (m) => pushLog('  ' + m),
+      summaries,
     });
 
     pushLog('\n=== 产生报表 ===');
@@ -594,6 +627,75 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true, message: '已将专用 Chrome 叫到最前面' });
       } catch (e) {
         return json(res, 500, { ok: false, message: '操作失败：' + e.message });
+      }
+    }
+
+    // ───────── 設定（AI 服務）─────────
+    if (p === '/api/settings' && req.method === 'GET') {
+      try {
+        const c = await loadConfig({ autoCreate: false });
+        return json(res, 200, {
+          ok: true,
+          llm: { baseUrl: c.llm.baseUrl, model: c.llm.model, hasKey: !!c.llm.apiKey, enabled: c.llm.enabled },
+          summarize: c.summarize !== false,
+          timeFilter: c.timeFilter || 'create',
+        });
+      } catch (e) {
+        return json(res, 500, { ok: false, message: e.message });
+      }
+    }
+
+    if (p === '/api/settings' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const { saveConfig } = await import('../lib/config.mjs');
+        const patch = {};
+        const llmPatch = {};
+        if (typeof body.llmBaseUrl === 'string') llmPatch.baseUrl = body.llmBaseUrl.trim();
+        if (typeof body.llmModel === 'string') llmPatch.model = body.llmModel.trim();
+        // 空白表示「不変更」；使用者要把 Key 清掉時傳 clearKey:true
+        if (typeof body.llmApiKey === 'string' && body.llmApiKey.trim()) llmPatch.apiKey = body.llmApiKey.trim();
+        if (body.clearKey) llmPatch.apiKey = '';
+        if (Object.keys(llmPatch).length) patch.llm = llmPatch;
+        if (typeof body.summarize === 'boolean') patch.summarize = body.summarize;
+
+        const saved = await saveConfig(patch);
+
+        // 立刻套用到執行中的狀態（不必重啟）
+        const c = await loadConfig({ autoCreate: false });
+        state.timeFilter = c.timeFilter || 'create';
+        broadcast('state', publicState());
+
+        return json(res, 200, {
+          ok: true,
+          llm: { baseUrl: saved.llm?.baseUrl || '', model: saved.llm?.model || '', hasKey: !!saved.llm?.apiKey, enabled: c.llm.enabled },
+          summarize: c.summarize !== false,
+        });
+      } catch (e) {
+        return json(res, 500, { ok: false, message: e.message });
+      }
+    }
+
+    if (p === '/api/test-llm' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const c = await loadConfig({ autoCreate: false });
+        // 允許先用表單上的值測試（不必先儲存）
+        const probe = {
+          baseUrl: (body.llmBaseUrl || '').trim() || c.llm.baseUrl,
+          apiKey: (body.llmApiKey || '').trim() || c.llm.apiKey,
+          model: (body.llmModel || '').trim() || c.llm.model,
+        };
+        if (!probe.baseUrl) return json(res, 200, { ok: false, message: '请先填写 API 位址' });
+        if (!probe.model) return json(res, 200, { ok: false, message: '请先填写模型名称' });
+        try {
+          const r = await testLlm(probe);
+          return json(res, 200, { ok: true, message: `连线成功（${r.ms} ms）：${r.reply}`, ms: r.ms });
+        } catch (e) {
+          return json(res, 200, { ok: false, message: e.message });
+        }
+      } catch (e) {
+        return json(res, 500, { ok: false, message: e.message });
       }
     }
 

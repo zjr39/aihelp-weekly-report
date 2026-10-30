@@ -1,3 +1,10 @@
 {
-  "dashboardUrl": "https://YOUR-COMPANY.aihelp.net/dashboard/"
+  "dashboardUrl": "https://YOUR-COMPANY.aihelp.net/dashboard/",
+
+  "//AI摘要": "填入 baseUrl 与 model 后，报表会多一栏「具体内容」（用一句话说明玩家在问什么）。也可在界面右上角「AI 设定」里填。留空则退回引用玩家原话。",
+  "llm": {
+    "baseUrl": "",
+    "apiKey": "",
+    "model": ""
+  }
 }

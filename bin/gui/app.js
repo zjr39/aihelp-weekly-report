@@ -261,10 +261,98 @@ async function doQuit() {
   }
 }
 
+// ───────── AI 设定对话窗 ─────────
+function setSettingsMsg(kind, text) {
+  const el = $('settingsMsg');
+  el.hidden = false;
+  el.className = 'settingsMsg ' + kind;
+  el.textContent = text;
+}
+function clearSettingsMsg() {
+  const el = $('settingsMsg');
+  el.hidden = true;
+  el.textContent = '';
+}
+
+async function openSettings() {
+  clearSettingsMsg();
+  $('settingsModal').hidden = false;
+  $('llmApiKey').value = '';
+  try {
+    const s = await api('/api/settings');
+    $('llmBaseUrl').value = s.llm.baseUrl || '';
+    $('llmModel').value = s.llm.model || '';
+    $('summarizeEnabled').checked = s.summarize !== false;
+    $('keyHint').textContent = s.llm.hasKey ? '已设定（留空表示不修改）' : '尚未设定';
+    if (!s.llm.enabled && s.llm.baseUrl === '' && s.llm.model === '') {
+      setSettingsMsg('info', '填入 API 位址与模型名称后才能用 AI 摘要；不填则摘要会退回「代表性原话」。');
+    }
+  } catch (e) {
+    setSettingsMsg('err', '读取设定失败：' + e.message);
+  }
+}
+function closeSettings() {
+  $('settingsModal').hidden = true;
+}
+
+async function saveSettings() {
+  const btn = $('btnSaveSettings');
+  btn.disabled = true;
+  btn.textContent = '储存中…';
+  try {
+    const r = await api('/api/settings', {
+      llmBaseUrl: $('llmBaseUrl').value,
+      llmApiKey: $('llmApiKey').value,
+      llmModel: $('llmModel').value,
+      summarize: $('summarizeEnabled').checked,
+    });
+    $('llmApiKey').value = '';
+    $('keyHint').textContent = r.llm.hasKey ? '已设定（留空表示不修改）' : '尚未设定';
+    setSettingsMsg('ok', r.llm.enabled ? '已储存，AI 摘要已启用。' : '已储存。尚未填完 API 位址与模型，摘要会退回代表性原话。');
+    setTimeout(closeSettings, 1200);
+  } catch (e) {
+    setSettingsMsg('err', '储存失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '储存';
+  }
+}
+
+async function testLlmConnection() {
+  const btn = $('btnTestLlm');
+  btn.disabled = true;
+  btn.textContent = '测试中…';
+  clearSettingsMsg();
+  try {
+    const r = await api('/api/test-llm', {
+      llmBaseUrl: $('llmBaseUrl').value,
+      llmApiKey: $('llmApiKey').value,
+      llmModel: $('llmModel').value,
+    });
+    setSettingsMsg(r.ok ? 'ok' : 'err', r.message);
+  } catch (e) {
+    setSettingsMsg('err', '测试失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '测试连线';
+  }
+}
+
 $('btnStart').onclick = doStart;
 $('btnStop').onclick = doStop;
 $('btnChrome').onclick = doLaunchChrome;
 $('btnQuit').onclick = doQuit;
+$('btnSettings').onclick = openSettings;
+$('btnCloseSettings').onclick = closeSettings;
+$('btnCancelSettings').onclick = closeSettings;
+$('btnSaveSettings').onclick = saveSettings;
+$('btnTestLlm').onclick = testLlmConnection;
+$('settingsModal').addEventListener('click', (e) => {
+  if (e.target === $('settingsModal')) closeSettings();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('settingsModal').hidden) closeSettings();
+});
 $('btnXlsx').onclick = () => (location.href = '/api/download/xlsx');
 $('btnTsv').onclick = () => (location.href = '/api/download/tsv');
 $('btnRaw').onclick = () => (location.href = '/api/download/raw');

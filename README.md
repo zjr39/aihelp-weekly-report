@@ -127,10 +127,13 @@ npm start
 
 1. 确认日期（预设已带好**上周五 ~ 本周四**）
 2. 按「开始采集」
-3. 等约 3 分钟（会即时显示正在抓哪个游戏）
+3. 等约 **5～7 分钟**（会即时显示正在抓哪个游戏、抓对话进度、摘要进度）
 4. 按「下载 Excel 表格」
 
 界面支援 **暂停 / 继续 / 终止**，全程可以放着自己跑。
+
+> 想看客诉的「具体内容」摘要，记得先点右上角 **「AI 设定」** 填 API（见下方章节）。
+> 没填也能跑，只是摘要会退回引用玩家原话。
 
 ### 命令列
 
@@ -202,6 +205,62 @@ AIHelp 客诉统计页有个下拉选单决定「时间怎么归到週期」：
 { "timeFilter": "metric" }
 ```
 
+---
+
+## AI 摘要：客诉「具体内容」
+
+报表里每个二级标签都会多一栏 **「具体内容」**，用一句话说明玩家到底在问什么。
+（例如：`玩家主要在询问储值未到账与退款流程`）
+
+![AI 设定](docs/settings.png)
+
+### 怎么开
+
+点界面右上角 **「AI 设定」**，填入三项：
+
+| 栏位 | 说明 | 例子 |
+|---|---|---|
+| **API 位址** | 任何 OpenAI 相容服务 | `https://api.deepseek.com` |
+| **API Key** | 你的金钥 | `sk-...` |
+| **模型名称** | 服务商提供的模型代号 | `deepseek-chat` |
+
+填完按「测试连线」确认可用，再按「储存」。
+
+支援的服务（只要相容 `POST /chat/completions`）：
+
+- **DeepSeek**：`https://api.deepseek.com` + `deepseek-chat`
+- **OpenAI**：`https://api.openai.com/v1` + `gpt-4o-mini`
+- **Ollama**（本机离线）：`http://localhost:11434/v1` + `qwen2.5:7b`
+- **One-API / New-API** 等自建中转
+
+> 位址会自动补上 `/chat/completions`，填到 `/v1` 或直接填服务根路径都可以。
+
+### 它是怎么做到的
+
+1. 采集时会顺便抓每笔客诉的**完整对话**（`/console/api/chat/message/page`）
+2. 按标签树把每笔客诉归到它的**二级标签**（客诉带的是叶节点标签，
+   要往上捲到 L2 才能对上统计页的笔数）
+3. 每个游戏把所有标签的玩家发言交给模型，一次产出所有标签的摘要
+
+> 实测：29 个有数据的二级标签 **100% 都能对应到具体客诉**。
+
+### 没填 API 会怎样
+
+摘要会自动退回「**代表性原话**」模式 —— 直接引用玩家的原话，例如：
+
+```
+玩家反映「请问一下 我之前有买自动练功的 怎么不见了」「能不能刷新一个贤者5*10的礼包给我买呀」等（13 笔）
+```
+
+不收钱、不用联网，但不会改写成通顺的中文句子。
+
+### 费用
+
+一次完整周报大约 **7 次** API 呼叫（每个游戏一次），每次送几千个 token。
+用 DeepSeek 的话通常不到 1 分钱。
+
+---
+
 ### 进阶选项
 
 ```json
@@ -211,9 +270,17 @@ AIHelp 客诉统计页有个下拉选单决定「时间怎么归到週期」：
   "chrome": "D:\\Chrome\\chrome.exe",
   "profileDir": "D:\\aihelp-profile",
   "weekAnchor": "fri",
-  "timeFilter": "create"
+  "timeFilter": "create",
+  "summarize": true,
+  "llm": {
+    "baseUrl": "https://api.deepseek.com",
+    "apiKey": "sk-...",
+    "model": "deepseek-chat"
+  }
 }
 ```
+
+把 `summarize` 设成 `false` 可以完全不产「具体内容」栏位。
 
 也可以全部用环境变数覆盖（方便做排程或 CI）：
 
@@ -222,6 +289,9 @@ AIHELP_DASHBOARD_URL
 AIHELP_CHROME
 AIHELP_PORT
 AIHELP_PROFILE_DIR
+AIHELP_LLM_BASE_URL
+AIHELP_LLM_API_KEY
+AIHELP_LLM_MODEL
 ```
 
 ---
@@ -281,12 +351,17 @@ lib/                 核心逻辑
   config.mjs           设定载入与浏览器自动探索
   pages.mjs            AIHelp 页面与 API 路径（集中管理，不散落各处）
   collectCore.mjs      采集核心
+  conversations.mjs    抓取客诉对话
+  summarize.mjs        用 AI 产生「具体内容」摘要
+  llm.mjs              OpenAI 相容 API 客户端
   pipeline.mjs         转换 + 产生报表
   report.mjs           有效／无效的计算与对帐
   xlsx.mjs             零依赖 Excel 产生器
   cdp.mjs              Chrome DevTools Protocol 客户端
 tools/               开发与维护脚本
-docs/                文件
+  mock-llm.mjs         本机模拟 AI 服务（测试摘要流程用，不花钱）
+  dump-xlsx.mjs        把 Excel 内容印成文字表格，方便检查版面
+docs/                文件（含界面截图）
 assets/              图示
 ```
 
