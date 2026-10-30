@@ -657,6 +657,14 @@ const server = http.createServer(async (req, res) => {
           already = false;
         }
         if (!already) {
+          // 找不到 Chrome / Edge 时给使用者看得懂的说明，而不是 spawn 失败
+          if (!cfg.chrome) {
+            return json(res, 200, {
+              ok: false,
+              message:
+                '找不到 Chrome 或 Edge 浏览器。请先安装 Google Chrome（https://www.google.com/chrome/），装好后重新启动本工具。',
+            });
+          }
           await fs.mkdir(cfg.profileDir, { recursive: true });
           const child = spawn(
             cfg.chrome,
