@@ -262,13 +262,24 @@ async function doQuit() {
 }
 
 // ───────── AI 设定对话窗 ─────────
+// 模型名称不写死：向服务端 GET /models 查，因为各家名称差很多而且会改版。
 const PROVIDERS = {
-  deepseek: { url: 'https://api.deepseek.com', model: 'deepseek-chat', hint: '推荐 deepseek-chat（快、便宜）；deepseek-reasoner 会先思考，较慢但更细致' },
-  openai: { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', hint: '例：gpt-4o-mini（便宜快）、gpt-4o（较贵）' },
-  ollama: { url: 'http://localhost:11434/v1', model: 'qwen2.5:7b', hint: '本机离线模型，不需要 API Key。例：qwen2.5:7b、llama3.1:8b' },
-  custom: { url: '', model: '', hint: '任何 OpenAI 相容服务，例如 One-API、vLLM、Azure OpenAI' },
+  deepseek: { url: 'https://api.deepseek.com', model: '' },
+  openai: { url: 'https://api.openai.com/v1', model: '' },
+  ollama: { url: 'http://localhost:11434/v1', model: '' },
+  custom: { url: '', model: '' },
 };
+
+/** 对模型名称给一个粗略的定位提示（只是引导，实际能力以官方说明为准） */
+function modelTag(id) {
+  const s = String(id).toLowerCase();
+  if (/reason|think|pro|max|large|70b|72b/.test(s)) return { text: '强，较慢', cls: 'slow' };
+  if (/flash|mini|lite|small|turbo|fast|3b|7b|8b/.test(s)) return { text: '快，便宜', cls: '' };
+  return null;
+}
+
 let currentProvider = 'deepseek';
+let fetchedModels = [];
 
 function setProvider(name, { fill = true } = {}) {
   const p = PROVIDERS[name];
@@ -277,11 +288,7 @@ function setProvider(name, { fill = true } = {}) {
   document.querySelectorAll('.provider').forEach((b) => b.classList.toggle('active', b.dataset.provider === name));
   // 自订模式才显示位址栏
   $('baseUrlField').hidden = name !== 'custom';
-  if (fill) {
-    if (name !== 'custom') $('llmBaseUrl').value = p.url;
-    if (!name || name !== 'custom' || !$('llmModel').value) $('llmModel').value = p.model || $('llmModel').value;
-  }
-  $('modelHint').textContent = p.hint;
+  if (fill && name !== 'custom') $('llmBaseUrl').value = p.url;
 }
 
 function detectProvider(url) {
@@ -290,6 +297,77 @@ function detectProvider(url) {
   if (/openai/i.test(u)) return 'openai';
   if (/localhost:11434|127\.0\.0\.1:11434/i.test(u)) return 'ollama';
   return u ? 'custom' : 'deepseek';
+}
+
+function renderModelChips(models, selected) {
+  const box = $('modelChips');
+  if (!models || !models.length) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = '';
+  for (const id of models) {
+    const tag = modelTag(id);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'modelChip' + (id === selected ? ' active' : '');
+    b.dataset.model = id;
+    b.textContent = id;
+    if (tag) {
+      const sp = document.createElement('span');
+      sp.className = 'tag ' + tag.cls;
+      sp.textContent = tag.text;
+      b.appendChild(document.createTextNode(' '));
+      b.appendChild(sp);
+    }
+    b.onclick = () => {
+      $('llmModel').value = id;
+      renderModelChips(fetchedModels, id);
+      clearSettingsMsg();
+    };
+    box.appendChild(b);
+  }
+}
+
+async function fetchModels() {
+  const btn = $('btnFetchModels');
+  btn.disabled = true;
+  btn.textContent = '查询中…';
+  clearSettingsMsg();
+  try {
+    const r = await api('/api/models', {
+      llmBaseUrl: $('llmBaseUrl').value,
+      llmApiKey: $('llmApiKey').value,
+    });
+    if (!r.ok) {
+      setSettingsMsg('err', '取得模型清单失败：' + r.message + '（也可以直接手动输入模型名称）');
+      $('modelChips').hidden = true;
+      $('modelHint').textContent = '无法自动取得清单，请手动输入模型名称';
+      return;
+    }
+    fetchedModels = r.models || [];
+    renderModelChips(fetchedModels, $('llmModel').value);
+    if (!fetchedModels.length) {
+      setSettingsMsg('info', '服务端没有回传任何模型，请手动输入。');
+      return;
+    }
+    // 如果目前模型不在清单里，自动挑一个 —— 优先挑「快」的模型，
+    // 因为摘要任务不需要深度推理，快的模型便宜又够用。
+    if (!$('llmModel').value || !fetchedModels.includes($('llmModel').value)) {
+      const fast = fetchedModels.find((id) => /flash|mini|lite|fast|turbo|small|chat/i.test(id));
+      const pick = fast || fetchedModels[0];
+      $('llmModel').value = pick;
+      renderModelChips(fetchedModels, pick);
+    }
+    $('modelHint').textContent = `你的 API 提供 ${fetchedModels.length} 个模型，点一下即可切换`;
+    setSettingsMsg('info', '已取得模型清单。摘要任务建议选「快」的模型，便宜又够用。');
+  } catch (e) {
+    setSettingsMsg('err', '取得模型清单失败：' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '取得清单';
+  }
 }
 
 function setSettingsMsg(kind, text) {
@@ -308,16 +386,20 @@ async function openSettings() {
   clearSettingsMsg();
   $('settingsModal').hidden = false;
   $('llmApiKey').value = '';
+  $('modelChips').hidden = true;
   try {
     const s = await api('/api/settings');
     $('llmBaseUrl').value = s.llm.baseUrl || '';
     $('llmModel').value = s.llm.model || '';
     $('summarizeEnabled').checked = s.summarize !== false;
     $('keyHint').textContent = s.llm.hasKey ? '已设定（留空表示不修改）' : '尚未设定';
-    // 依现有设定自动选出对应的服务商
     setProvider(detectProvider(s.llm.baseUrl), { fill: !s.llm.baseUrl });
+    $('modelHint').textContent = '按「取得清单」会向你的 API 查询实际可用的模型';
     if (!s.llm.hasKey) {
-      setSettingsMsg('info', '填入 API Key 后按「测试连线」确认可用。不填也能跑，摘要会退回引用玩家原话。');
+      setSettingsMsg('info', '填入 API Key 后按「取得清单」选模型。不填也能跑，摘要会退回引用玩家原话。');
+    } else {
+      // 已经有 Key，自动查一次模型清单
+      fetchModels();
     }
   } catch (e) {
     setSettingsMsg('err', '读取设定失败：' + e.message);
@@ -379,8 +461,20 @@ $('btnCloseSettings').onclick = closeSettings;
 $('btnCancelSettings').onclick = closeSettings;
 $('btnSaveSettings').onclick = saveSettings;
 $('btnTestLlm').onclick = testLlmConnection;
+$('btnFetchModels').onclick = fetchModels;
 document.querySelectorAll('.provider').forEach((b) => {
-  b.onclick = () => setProvider(b.dataset.provider, { fill: true });
+  b.onclick = () => {
+    setProvider(b.dataset.provider, { fill: true });
+    // 换服务商后重新查模型清单（已有 Key 的话）
+    if ($('llmApiKey').value || currentProvider === 'ollama') {
+      $('modelChips').hidden = true;
+      fetchModels();
+    } else {
+      $('modelChips').hidden = true;
+      $('llmModel').value = '';
+      setSettingsMsg('info', '填好 API Key 后会自动列出可用的模型。');
+    }
+  };
 });
 $('settingsModal').addEventListener('click', (e) => {
   if (e.target === $('settingsModal')) closeSettings();

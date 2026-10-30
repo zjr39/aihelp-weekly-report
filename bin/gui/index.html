@@ -53,8 +53,12 @@
     </label>
     <label class="field">
       <span>模型名称</span>
-      <input type="text" id="llmModel" placeholder="deepseek-chat" autocomplete="off" spellcheck="false" />
-      <small id="modelHint">推荐 deepseek-chat（快、便宜）；deepseek-reasoner 会先思考，较慢但更细致</small>
+      <div class="modelRow">
+        <input type="text" id="llmModel" placeholder="点右边「取得清单」自动列出" autocomplete="off" spellcheck="false" />
+        <button type="button" id="btnFetchModels" class="ghost small">取得清单</button>
+      </div>
+      <div id="modelChips" class="chipRow" hidden></div>
+      <small id="modelHint">按「取得清单」会向你的 API 查询实际可用的模型</small>
     </label>
     <label class="checkLine">
       <input type="checkbox" id="summarizeEnabled" checked />

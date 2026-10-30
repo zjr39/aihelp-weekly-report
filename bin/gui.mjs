@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { collect, StopRequested } from '../lib/collectCore.mjs';
 import { transform, buildSheet, buildXlsxReport, prepareSummaryGroups } from '../lib/pipeline.mjs';
 import { summarizeGroups, fallbackSummary } from '../lib/summarize.mjs';
-import { testConnection as testLlm } from '../lib/llm.mjs';
+import { testConnection as testLlm, listModels as listLlmModels } from '../lib/llm.mjs';
 import { loadConfig, saveConfig } from '../lib/config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -671,6 +671,26 @@ const server = http.createServer(async (req, res) => {
           llm: { baseUrl: saved.llm?.baseUrl || '', model: saved.llm?.model || '', hasKey: !!saved.llm?.apiKey, enabled: c.llm.enabled },
           summarize: c.summarize !== false,
         });
+      } catch (e) {
+        return json(res, 500, { ok: false, message: e.message });
+      }
+    }
+
+    if (p === '/api/models' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const c = await loadConfig({ autoCreate: false });
+        const probe = {
+          baseUrl: (body.llmBaseUrl || '').trim() || c.llm.baseUrl,
+          apiKey: (body.llmApiKey || '').trim() || c.llm.apiKey,
+        };
+        if (!probe.baseUrl) return json(res, 200, { ok: false, message: '请先选择服务商或填写 API 位址' });
+        try {
+          const models = await listLlmModels(probe);
+          return json(res, 200, { ok: true, models });
+        } catch (e) {
+          return json(res, 200, { ok: false, message: e.message });
+        }
       } catch (e) {
         return json(res, 500, { ok: false, message: e.message });
       }

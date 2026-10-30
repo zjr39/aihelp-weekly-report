@@ -42,7 +42,7 @@ const clicked = await ev(`
 })()
 `);
 console.log('点击 AI 设定：' + clicked);
-await sleep(1800);
+await sleep(4500); // 等自动查询模型清单回来
 
 // 截圖（只截對話窗區域較清楚，這裡截整頁）
 const shot = await conn.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, sid);
