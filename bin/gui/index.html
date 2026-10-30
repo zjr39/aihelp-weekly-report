@@ -25,23 +25,36 @@
       <button id="btnCloseSettings" class="iconBtn" title="关闭">✕</button>
     </div>
     <p class="modalHint">
-      客诉的「具体内容」会用 AI 把玩家对话浓缩成一句中文摘要。<br>
-      支援任何 OpenAI 相容服务（DeepSeek、OpenAI、Ollama、One-API…）。
+      客诉的「具体内容」会用 AI 把玩家对话浓缩成一句中文摘要。
     </p>
-    <label class="field">
+
+    <div class="field">
+      <span>服务商</span>
+      <div class="providerRow">
+        <button type="button" class="provider active" data-provider="deepseek">
+          DeepSeek<small>推荐</small>
+        </button>
+        <button type="button" class="provider" data-provider="openai">OpenAI</button>
+        <button type="button" class="provider" data-provider="ollama">本机 Ollama</button>
+        <button type="button" class="provider" data-provider="custom">自订</button>
+      </div>
+    </div>
+
+    <label class="field" id="baseUrlField" hidden>
       <span>API 位址</span>
       <input type="text" id="llmBaseUrl" placeholder="https://api.deepseek.com" autocomplete="off" spellcheck="false" />
-      <small>例：https://api.deepseek.com 或 https://api.openai.com/v1（会自动补 /chat/completions）</small>
+      <small>会自动补上 /chat/completions</small>
     </label>
+
     <label class="field">
       <span>API Key</span>
-      <input type="password" id="llmApiKey" placeholder="留空表示不修改" autocomplete="off" spellcheck="false" />
+      <input type="password" id="llmApiKey" placeholder="sk-..." autocomplete="off" spellcheck="false" />
       <small id="keyHint">尚未设定</small>
     </label>
     <label class="field">
       <span>模型名称</span>
       <input type="text" id="llmModel" placeholder="deepseek-chat" autocomplete="off" spellcheck="false" />
-      <small>例：deepseek-chat、gpt-4o-mini、qwen2.5:7b</small>
+      <small id="modelHint">推荐 deepseek-chat（快、便宜）；deepseek-reasoner 会先思考，较慢但更细致</small>
     </label>
     <label class="checkLine">
       <input type="checkbox" id="summarizeEnabled" checked />

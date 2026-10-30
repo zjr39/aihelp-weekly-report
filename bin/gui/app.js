@@ -262,6 +262,36 @@ async function doQuit() {
 }
 
 // ───────── AI 设定对话窗 ─────────
+const PROVIDERS = {
+  deepseek: { url: 'https://api.deepseek.com', model: 'deepseek-chat', hint: '推荐 deepseek-chat（快、便宜）；deepseek-reasoner 会先思考，较慢但更细致' },
+  openai: { url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', hint: '例：gpt-4o-mini（便宜快）、gpt-4o（较贵）' },
+  ollama: { url: 'http://localhost:11434/v1', model: 'qwen2.5:7b', hint: '本机离线模型，不需要 API Key。例：qwen2.5:7b、llama3.1:8b' },
+  custom: { url: '', model: '', hint: '任何 OpenAI 相容服务，例如 One-API、vLLM、Azure OpenAI' },
+};
+let currentProvider = 'deepseek';
+
+function setProvider(name, { fill = true } = {}) {
+  const p = PROVIDERS[name];
+  if (!p) return;
+  currentProvider = name;
+  document.querySelectorAll('.provider').forEach((b) => b.classList.toggle('active', b.dataset.provider === name));
+  // 自订模式才显示位址栏
+  $('baseUrlField').hidden = name !== 'custom';
+  if (fill) {
+    if (name !== 'custom') $('llmBaseUrl').value = p.url;
+    if (!name || name !== 'custom' || !$('llmModel').value) $('llmModel').value = p.model || $('llmModel').value;
+  }
+  $('modelHint').textContent = p.hint;
+}
+
+function detectProvider(url) {
+  const u = String(url || '');
+  if (/deepseek/i.test(u)) return 'deepseek';
+  if (/openai/i.test(u)) return 'openai';
+  if (/localhost:11434|127\.0\.0\.1:11434/i.test(u)) return 'ollama';
+  return u ? 'custom' : 'deepseek';
+}
+
 function setSettingsMsg(kind, text) {
   const el = $('settingsMsg');
   el.hidden = false;
@@ -284,8 +314,10 @@ async function openSettings() {
     $('llmModel').value = s.llm.model || '';
     $('summarizeEnabled').checked = s.summarize !== false;
     $('keyHint').textContent = s.llm.hasKey ? '已设定（留空表示不修改）' : '尚未设定';
-    if (!s.llm.enabled && s.llm.baseUrl === '' && s.llm.model === '') {
-      setSettingsMsg('info', '填入 API 位址与模型名称后才能用 AI 摘要；不填则摘要会退回「代表性原话」。');
+    // 依现有设定自动选出对应的服务商
+    setProvider(detectProvider(s.llm.baseUrl), { fill: !s.llm.baseUrl });
+    if (!s.llm.hasKey) {
+      setSettingsMsg('info', '填入 API Key 后按「测试连线」确认可用。不填也能跑，摘要会退回引用玩家原话。');
     }
   } catch (e) {
     setSettingsMsg('err', '读取设定失败：' + e.message);
@@ -347,6 +379,9 @@ $('btnCloseSettings').onclick = closeSettings;
 $('btnCancelSettings').onclick = closeSettings;
 $('btnSaveSettings').onclick = saveSettings;
 $('btnTestLlm').onclick = testLlmConnection;
+document.querySelectorAll('.provider').forEach((b) => {
+  b.onclick = () => setProvider(b.dataset.provider, { fill: true });
+});
 $('settingsModal').addEventListener('click', (e) => {
   if (e.target === $('settingsModal')) closeSettings();
 });
