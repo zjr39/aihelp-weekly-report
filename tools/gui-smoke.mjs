@@ -24,9 +24,13 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? '✅' : '❌'} ${name}${detail ? '  → ' + detail : ''}`);
 };
 
-// 1) 首頁
+// 1) 首頁（標題在去識別化時改過，這裡用穩定的結構特徵判斷）
 const home = await get('/');
-check('首頁可載入', home.status === 200 && /客訴週報蒐集工具/.test(home.text), `HTTP ${home.status}, ${home.len} bytes`);
+check(
+  '首頁可載入',
+  home.status === 200 && /<title>/.test(home.text) && /id="btnStart"/.test(home.text),
+  `HTTP ${home.status}, ${home.len} bytes`,
+);
 
 // 2) 靜態檔
 const css = await get('/static/style.css');

@@ -12,6 +12,12 @@
   --run: #2b6cb0;
 }
 * { box-sizing: border-box; }
+
+/* 重要：一定要有這條。
+   瀏覽器預設的 [hidden]{display:none} 權重比 .modal{display:flex} 之類的
+   類別選擇器低，所以只要元素自己有 display 規則，hidden 屬性就會失效
+   （對話窗關不掉、離線橫幅一直顯示都是這個原因）。 */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);

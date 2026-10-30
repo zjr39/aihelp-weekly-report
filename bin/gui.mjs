@@ -651,9 +651,10 @@ const server = http.createServer(async (req, res) => {
         const { saveConfig } = await import('../lib/config.mjs');
         const patch = {};
         const llmPatch = {};
-        if (typeof body.llmBaseUrl === 'string') llmPatch.baseUrl = body.llmBaseUrl.trim();
-        if (typeof body.llmModel === 'string') llmPatch.model = body.llmModel.trim();
-        // 空白表示「不変更」；使用者要把 Key 清掉時傳 clearKey:true
+        // 只有「有填东西」才覆盖 —— 空白一律视为「不修改」，
+        // 避免使用者只改其中一项时把其他设定（尤其是 API Key）清掉。
+        if (typeof body.llmBaseUrl === 'string' && body.llmBaseUrl.trim()) llmPatch.baseUrl = body.llmBaseUrl.trim();
+        if (typeof body.llmModel === 'string' && body.llmModel.trim()) llmPatch.model = body.llmModel.trim();
         if (typeof body.llmApiKey === 'string' && body.llmApiKey.trim()) llmPatch.apiKey = body.llmApiKey.trim();
         if (body.clearKey) llmPatch.apiKey = '';
         if (Object.keys(llmPatch).length) patch.llm = llmPatch;

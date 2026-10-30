@@ -423,7 +423,7 @@ async function saveSettings() {
     $('llmApiKey').value = '';
     $('keyHint').textContent = r.llm.hasKey ? '已设定（留空表示不修改）' : '尚未设定';
     setSettingsMsg('ok', r.llm.enabled ? '已储存，AI 摘要已启用。' : '已储存。尚未填完 API 位址与模型，摘要会退回代表性原话。');
-    setTimeout(closeSettings, 1200);
+    setTimeout(closeSettings, 900);
   } catch (e) {
     setSettingsMsg('err', '储存失败：' + e.message);
   } finally {
