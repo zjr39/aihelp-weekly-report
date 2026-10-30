@@ -17,6 +17,45 @@
   </div>
 </header>
 
+<!-- 首次使用设定（盖住整个界面，设定完才放行） -->
+<div id="setupOverlay" class="modal setupOverlay" hidden>
+  <div class="modalBox">
+    <div class="modalHead">
+      <h2>👋 首次使用设定</h2>
+    </div>
+    <p class="modalHint">
+      只要填一个网址就能开始。之后随时可以从右上角「AI 设定」修改。
+    </p>
+
+    <label class="field">
+      <span>你的 AIHelp 后台网址</span>
+      <input
+        type="text"
+        id="setupUrl"
+        placeholder="https://YOUR-COMPANY.aihelp.net/dashboard/"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <small>
+        用浏览器打开你的 AIHelp 后台，复制地址栏最前面那一段就行。<br>
+        只填 <code>公司的名字.aihelp.net</code> 也可以，程序会自动补完。
+      </small>
+    </label>
+
+    <div class="setupSteps">
+      <div class="setupStep"><b>1</b><span>填写上面的网址</span></div>
+      <div class="setupStep"><b>2</b><span>按「启动 Chrome」，在弹出的浏览器里登录</span></div>
+      <div class="setupStep"><b>3</b><span>回来按「开始采集」</span></div>
+    </div>
+
+    <div id="setupMsg" class="settingsMsg" hidden></div>
+    <div class="modalFoot">
+      <div class="spacer"></div>
+      <button id="btnSetupSave" class="primary">储存并开始</button>
+    </div>
+  </div>
+</div>
+
 <!-- AI 设定对话窗 -->
 <div id="settingsModal" class="modal" hidden>
   <div class="modalBox">

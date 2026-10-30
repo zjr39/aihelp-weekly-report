@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+# 換行與編碼規則
+#
+# 背景：Windows 批次檔（.cmd）如果是 LF 換行，雙擊執行時行為會異常
+# （視窗閃一下就關、多行括號區塊解析錯誤）。
+# 之前 core.autocrlf=input 把 .cmd 的 CRLF 正規化成 LF 提交，
+# 導致 clone / 下載 ZIP 的人拿到壞掉的檔案。
+#
+# 這裡用 -text（不要做任何換行轉換）把原始位元組原封不動存進 repo，
+# 這樣 git clone 與 GitHub「Download ZIP」拿到的都是正確的 CRLF。
+# ─────────────────────────────────────────────────────────────
+
+* text=auto
+
+# Windows 批次檔：必須 CRLF，且只能是純 ASCII
+*.cmd -text
+*.bat -text
+
+# 特殊編碼，絕不可讓 git 碰
+#   .vbs = UTF-16LE + BOM（WSH 才能正確解析中文）
+#   .ps1 = UTF-8 + BOM（PowerShell 才不會把中文讀成亂碼）
+*.vbs -text
+*.ps1 -text
+
+# 二進位
+*.ico -text
+*.png -text
+*.jpg -text
+*.xlsx -text
+*.zip -text

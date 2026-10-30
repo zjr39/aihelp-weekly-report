@@ -97,6 +97,11 @@ function renderGames(games) {
 function render(s) {
   lastState = s;
   setOffline(false);
+
+  // 首次使用：还没填 AIHelp 网址 → 显示设定画面并挡住主界面
+  const setup = $('setupOverlay');
+  if (setup) setup.hidden = !s.needsSetup;
+
   const [text, cls] = PHASE_TEXT[s.phase] || ['', ''];
   const statusEl = $('statusLine');
   statusEl.textContent = text + (s.error ? `：${s.error}` : '');
@@ -451,6 +456,38 @@ async function testLlmConnection() {
     btn.textContent = '测试连线';
   }
 }
+
+// ───────── 首次使用设定 ─────────
+function setupMsg(kind, text) {
+  const el = $('setupMsg');
+  el.hidden = false;
+  el.className = 'settingsMsg ' + kind;
+  el.textContent = text;
+}
+
+async function doSetup() {
+  const btn = $('btnSetupSave');
+  const url = $('setupUrl').value.trim();
+  if (!url) return setupMsg('err', '请先填写你的 AIHelp 网址');
+  btn.disabled = true;
+  btn.textContent = '储存中…';
+  try {
+    await api('/api/setup', { dashboardUrl: url });
+    setupMsg('ok', '设定完成！接下来按「启动 Chrome」登录你的 AIHelp 帐号。');
+    $('setupOverlay').hidden = true;
+    setTimeout(() => checkChrome(), 400);
+  } catch (e) {
+    setupMsg('err', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '储存并开始';
+  }
+}
+
+$('btnSetupSave').onclick = doSetup;
+$('setupUrl').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doSetup();
+});
 
 $('btnStart').onclick = doStart;
 $('btnStop').onclick = doStop;

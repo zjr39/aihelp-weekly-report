@@ -180,8 +180,7 @@ pre#log {
 .modalFoot .spacer { flex: 1; }
 
 /* 鏈嶅姟鍟嗗揩閫熼�夋嫨 */
-.providerRow { display: flex; gap: 8px; flex-wrap: wrap; }
-.provider {
+.providerRow { display: flex; gap: 8px; flex-wrap: wrap; }.provider {
   flex: 1 1 auto; min-width: 84px;
   padding: 9px 12px; border-radius: 8px; cursor: pointer;
   border: 1px solid #cfd8e6; background: #fcfdff; color: #46536b;
@@ -217,3 +216,20 @@ button.small { padding: 8px 12px; font-size: 12.5px; white-space: nowrap; }
   background: #e6f6ef; color: #12805c; font-weight: 700;
 }
 .modelChip .tag.slow { background: #fdf3e3; color: #a06a12; }
+
+/* ───────── 首次设定 ───────── */
+.setupOverlay { align-items: center; padding-top: 24px; }
+.setupOverlay .modalBox { max-width: 540px; }
+
+.setupSteps { display: flex; flex-direction: column; gap: 9px; margin: 4px 0 18px; }
+.setupStep { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #54617a; }
+.setupStep b {
+  flex: none; width: 20px; height: 20px; border-radius: 50%;
+  background: #eaf1fb; color: var(--primary);
+  font-size: 11px; display: flex; align-items: center; justify-content: center;
+}
+
+.field code {
+  background: #eef1f7; padding: 1px 5px; border-radius: 4px;
+  font-size: 11.5px; color: #39527d;
+}

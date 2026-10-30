@@ -31,8 +31,10 @@ const PORT = Number(arg('port', 8791));
 const CTRL_FILE = path.join(ROOT, 'raw', '.control.json');
 const LOG_FILE = path.join(ROOT, 'raw', '.last-run.log');
 
-// ── 未完成设定的保护 ──
-// 不要直接崩溃：给清楚的指示就好。--probe / --wait-ready 等辅助模式不受影响。
+// ── 首次使用的设定状态 ──
+// 不再「没设定就退出」—— 那样使用者得开终端跑 npm run setup，对非技术用户是门槛。
+// 改成：照常启动界面，由网页里的「首次设定」画面引导填 AIHelp 网址。
+let needsSetup = false;
 {
   const launcherModes = ['--probe', '--wait-ready', '--banner', '--already', '--failed', '--stopped'];
   const isLauncherMode = argv.some((a) => launcherModes.includes(a));
@@ -41,23 +43,20 @@ const LOG_FILE = path.join(ROOT, 'raw', '.last-run.log');
       const { loadConfig } = await import('../lib/config.mjs');
       const c = await loadConfig({ autoCreate: false });
       if (!c.configured) {
-        console.error(`
+        needsSetup = true;
+        console.log(`
   ┌─────────────────────────────────────────────────────────┐
-  │  尚未完成设定                                          │
+  │  首次使用：请在打开的网页里填写 AIHelp 网址            │
   └─────────────────────────────────────────────────────────┘
-
-  这个工具需要先知道你的 AIHelp 站台网址。请执行：
-
-      npm run setup
 
   设定精灵会引导你完成（约 1 分钟）。
 `);
-        process.exit(1);
       }
     } catch (e) {
-      console.error('\n  设定档读取失败：' + e.message);
-      console.error('  请修正 config.json，或删除它后重新执行 npm run setup\n');
-      process.exit(1);
+      // 设定档坏了也不要直接死，让使用者能在界面上修
+      needsSetup = true;
+      console.error(`\n  设定档读取失败：${e.message}`);
+      console.error('  可以删除 config.json 后在界面上重新设定\n');
     }
   }
 }
@@ -212,6 +211,8 @@ function publicState() {
     log: state.log.slice(-300),
     // 統計頁的「時間依據」：客訴創建時間（create）/ 指標發生時間（metric）
     timeFilter: state.timeFilter || 'create',
+    // 首次使用尚未設定 AIHelp 网址 → 界面顯示設定畫面
+    needsSetup,
   };
 }
 
@@ -540,7 +541,50 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ───────── 首次設定（在网页上填 AIHelp 网址，不用开终端）─────────
+    if (p === '/api/setup' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const url = String(body.dashboardUrl || '').trim();
+        if (!url) return json(res, 400, { ok: false, message: '请填写 AIHelp 网址' });
+
+        const { saveConfig } = await import('../lib/config.mjs');
+        const { PLACEHOLDER_HOST } = await import('../lib/config.mjs');
+
+        // 正规化：允许只填网域
+        let full = url;
+        if (!/^https?:\/\//i.test(full)) full = 'https://' + full;
+        let u;
+        try {
+          u = new URL(full);
+        } catch {
+          return json(res, 400, { ok: false, message: '网址格式不正确，请填成 https://你的公司.aihelp.net/dashboard/' });
+        }
+        if (!u.hostname) return json(res, 400, { ok: false, message: '网址格式不正确' });
+        // 注意：new URL() 会把 hostname 转小写，PLACEHOLDER_HOST 是大小写混排的，
+        // 所以要比对时必须两边都转小写（这个坑之前踩过一次）。
+        if (u.hostname.toLowerCase() === PLACEHOLDER_HOST.toLowerCase()) {
+          return json(res, 400, { ok: false, message: '请填你自己的 AIHelp 网址，不是范例网址' });
+        }
+        if (!/aihelp\.net$/i.test(u.hostname)) {
+          return json(res, 400, { ok: false, message: `这看起来不是 AIHelp 网址（应该是 xxx.aihelp.net）` });
+        }
+        // 补成 dashboard 路径
+        if (!/\/dashboard/i.test(u.pathname)) {
+          u.pathname = '/dashboard/';
+        }
+
+        await saveConfig({ dashboardUrl: u.origin + u.pathname + (u.hash || '#/insight/tickets/ticket') });
+        needsSetup = false;
+        broadcast('state', publicState());
+        return json(res, 200, { ok: true, dashboardUrl: u.origin });
+      } catch (e) {
+        return json(res, 500, { ok: false, message: e.message });
+      }
+    }
+
     if (p === '/api/start' && req.method === 'POST') {
+      if (needsSetup) return json(res, 400, { error: '请先完成首次设定（填写 AIHelp 网址）' });
       if (state.phase === 'running' || state.phase === 'paused') return json(res, 409, { error: '已有任务在执行中' });
       const { start, end } = await readBody(req);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(end || '')) {
@@ -726,7 +770,14 @@ const server = http.createServer(async (req, res) => {
       try {
         const targets = await listTargets(cfg.port);
         const page = findPage(targets, cfg.host);
-        if (!page) return json(res, 200, { ok: false, reason: 'no-page', message: '找不到 AIHelp 分页，请执行 chrome-up.mjs' });
+        if (!page) {
+          // 对使用者说人话：不要说「执行 chrome-up.mjs」这种开发者指令
+          return json(res, 200, {
+            ok: false,
+            reason: 'no-page',
+            message: 'Chrome 还没启动 → 请按右上角「启动 Chrome」',
+          });
+        }
         const conn = await connect(cfg.port);
         const sid = await conn.attach(page.id);
         const ev = conn.makeEval(sid);
@@ -763,10 +814,18 @@ const server = http.createServer(async (req, res) => {
 
 server.on('error', (e) => {
   if (e && e.code === 'EADDRINUSE') {
-    console.error(`\n  ❌ 端口 ${PORT} 已被占用。`);
-    console.error('     可能已经有一个「客诉周报工具」在运行。');
-    console.error('     若确定要重启，请先结束旧的服务，或改用别的端口：');
-    console.error(`       node bin\\gui.mjs --port 8792\n`);
+    console.error(`
+  ┌─────────────────────────────────────────────────────────┐
+  │  工具已经在运行了（端口 ${PORT} 被占用）                  │
+  └─────────────────────────────────────────────────────────┘
+
+  这通常不是错误 —— 可能是你之前已经打开过这个工具。
+
+  请直接用浏览器打开：  http://127.0.0.1:${PORT}
+
+  如果想重新启动，请先双击桌面的「结束客诉周报工具」，
+  或关掉之前那个黑色窗口，再试一次。
+`);
     process.exit(1);
   }
   console.error('服务器错误：' + (e && e.stack ? e.stack : e));
